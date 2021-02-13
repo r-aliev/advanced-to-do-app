@@ -16,15 +16,22 @@
   - 10 minutes before task deadline a warning email is sent to a user's email adress
 
   ### Demo
+
+  Login and create, delete, update task demo
+  
   ![Login and CRUD of Tasks demo](demo-gif/crud.gif)
   <br/>
   <br/>
-  ![Share and Comment demo](demo-gif/crud.gif)
+
+  Share and comment demo
+  
+  ![Share and Comment demo](demo-gif/share-comment.gif)
+
 
   ### Technologies used in developement
 
   - [Django](https://www.djangoproject.com/)
-  - [Docker](https://www.docker.com/) only for dev. env. .
+  - [Docker](https://www.docker.com/)
   - [Django Channels](https://channels.readthedocs.io/) to allow users to comment tasks in real time.
   - [Celery](https://docs.celeryproject.org/) to send emails 10 minutes before task deadline.
   - [Redis](https://redis.io/) as celery broker and as channel layer.
