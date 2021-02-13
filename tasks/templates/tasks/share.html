@@ -1,0 +1,14 @@
+{% extends 'tasks/index.html' %}
+{% load static %}
+{% block content %}
+<div class="center-column">
+
+    <form method="POST" action="">
+        {% csrf_token %}
+        <div class="row g-2">
+            {{form}}
+        </div>
+        <input class="btn btn-info main" type="submit" name="shareTask" value="Share Task">
+    </form>
+</div>
+{% endblock %}

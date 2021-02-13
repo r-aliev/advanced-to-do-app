@@ -1,0 +1,13 @@
+amqp==5.0.5
+billiard==3.6.3.0
+celery==5.0.5
+Django>=3.0,<4.0
+django-celery-beat==2.2.0
+django-celery-results==2.0.1
+kombu==5.0.2
+psycopg2-binary>=2.8
+vine==5.0.0
+channels==3.0.3
+channels-redis==3.2.0
+redis==3.5.3
+

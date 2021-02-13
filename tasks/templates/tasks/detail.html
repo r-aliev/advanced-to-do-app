@@ -1,0 +1,284 @@
+{% extends 'tasks/index.html' %}
+{% load static %}
+{% load permission_extras %}
+
+
+{% block content %}
+<div class="center-column">
+    <h4>{{task.title}}</h4>
+    <p>{{task.description}} on <time>{{task.expiration_date}}</time></p>
+    <p> {{task.author}}</p>
+</div>
+
+<div class="center-column">
+    <h4>Comments:</h4>
+    <div id="comments-container">
+        {% for comment in comments %}
+            <div data-id="{{comment.id}}" class="card bg-light mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">{{comment.author.username}}</h5>
+                    <p class="card-text">{{comment.body}}</p>
+                    {% if user|can_edit_comment:comment %}
+                    <input onclick="editComment(event)" data-id="{{comment.id}}" type="button" class="btn btn-success btn-sm edit-comment" value="Edit">
+                    {% endif %}
+                    {% can_delete_comment user comment task as can_delete_tag %}
+                    {% if can_delete_tag %}
+                    <input onclick="deleteComment(event)"  data-id="{{comment.id}}" type="button" class="btn btn-danger btn-sm delete-comment" value="Delete">
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if user|can_comment:task %}
+<div class="center-column">
+    <textarea class="form-control mb-0" id="comment-input" placeholder="Write a comment..."></textarea><br>
+    <input type="button" class="btn btn-primary mt-0 main" id="comment-submit" value="Send">
+</div>
+{% endif %}
+<script src='https://cdnjs.cloudflare.com/ajax/libs/reconnecting-websocket/1.0.0/reconnecting-websocket.js'></script>
+<script>
+    
+/*  
+    //console.log(window.location) 
+    Brad version
+    var loc = window.location
+    var wsStart = 'ws://'
+    if(loc.protocol == 'https:'){
+        wsStart = 'wss://' 
+    }
+    var endpoint = wsStart + loc.host + loc.pathname
+    var commentSocket = new ReconnectingWebSocket(endpoint);
+*/
+
+    var task_id = '{{task.id}}';
+
+    var loc = window.location
+    var wsStart = 'ws://'
+    if(loc.protocol == 'https:'){
+        wsStart = 'wss://'  //for production
+    }
+    var commentSocket = new ReconnectingWebSocket(wsStart + window.location.host + '/ws/comment/' + task_id + '/');
+
+
+    //function to set a focus cursor to the end of the text, while editting comment
+    // Credits: http://blog.vishalon.net/index.php/javascript-getting-and-setting-caret-position-in-textarea/
+    function setCaretPosition(ctrl, pos) {
+    // Modern browsers
+        if (ctrl.setSelectionRange) {
+            ctrl.focus();
+            ctrl.setSelectionRange(pos, pos);
+        
+        // IE8 and below
+        } else if (ctrl.createTextRange) {
+            var range = ctrl.createTextRange();
+            range.collapse(true);
+            range.moveEnd('character', pos);
+            range.moveStart('character', pos);
+            range.select();
+        }
+    }
+
+    commentSocket.onmessage = function(e){
+
+        const data = JSON.parse(e.data);
+        if(data.operation == "create") {
+            
+            var card = document.createElement("div");
+            card.setAttribute('data-id', data.commentId)
+            card.classList.add("card", "bg-light", "mb-3");
+            
+            createCardBody();
+
+            var commentsContainer = document.getElementById("comments-container");
+            commentsContainer.append(card);
+        }
+
+        if(data.operation == "delete"){
+            var dataId = data.commentId
+            
+            var card = document.querySelector(`.card[data-id="${dataId}"]`)
+            
+            card.parentNode.removeChild(card);
+
+        }
+        if(data.operation == "edit"){
+           
+            var dataId = data.commentId
+           
+            
+            var card = document.querySelector(`.card[data-id="${dataId}"]`)
+
+            card.innerHTML = ''
+            
+            createCardBody();
+
+        }
+
+        //to avoid redundancy in create and edit 
+        function createCardBody(){
+            var cardBody = document.createElement("div");
+            cardBody.classList.add("card-body");
+            
+            var cardTitle = document.createElement("h5");
+            cardTitle.classList.add("card-title");
+            cardTitle.innerHTML = data.username
+
+            var cardText = document.createElement("p");
+            cardText.classList.add("card-text");
+            cardText.innerHTML = data.message;
+
+            card.appendChild(cardBody);
+
+            cardBody.appendChild(cardTitle);
+            cardBody.appendChild(cardText);
+            
+            if(data.username == user){
+            // Append Edit Button
+            var editButton = document.createElement('input')
+            editButton.setAttribute('onclick', 'editComment(event)')
+            editButton.setAttribute('data-id', data.commentId)
+            editButton.setAttribute('type', 'button')
+ 
+            editButton.className = 'btn btn-success btn-sm edit-comment'
+            editButton.setAttribute('value', 'Edit')
+            cardBody.appendChild(editButton)
+            }
+            
+            if(data.username == user || data.taskAuthor == user){
+            // Append Delete Button
+            var deleteButton = document.createElement('input')
+            deleteButton.setAttribute('onclick', 'deleteComment(event)')
+            deleteButton.setAttribute('data-id', data.commentId)
+
+            deleteButton.setAttribute('type', 'button')
+
+            deleteButton.className = 'btn btn-danger btn-sm delete-comment'
+            deleteButton.setAttribute('style', 'margin-left:0.25rem')
+            deleteButton.setAttribute('value','Delete')
+            cardBody.appendChild(deleteButton)
+            }
+
+        }
+    }
+
+    commentSocket.onopen = function(e){
+        console.log("open",e)
+    }
+
+    commentSocket.onerror = function(e){
+        console.log("error",e)
+    }
+
+    commentSocket.onclose = function(e){
+         console.error('Comment socket closed unexpectedly');
+    }
+    
+    document.querySelector('#comment-input').focus();
+    document.querySelector('#comment-input').onkeyup = function(e) {
+        if (e.keyCode === 13) {  // enter, return
+            document.querySelector('#comment-submit').click();
+        }
+    };
+
+    document.querySelector('#comment-submit').onclick = function(e) {
+
+        const messageInputDom = document.querySelector('#comment-input');
+        const message = messageInputDom.value;
+        commentSocket.send(JSON.stringify({
+            'message': message,
+            'taskId': {{task.id}},
+            'operation': "create"
+        }));
+        messageInputDom.value = '';
+    };
+
+
+    function deleteComment(e){
+        commentId = parseInt(e.target.getAttribute('data-id'));
+
+        commentSocket.send(JSON.stringify({
+            'taskId': {{task.id}},
+            'commentId': commentId,
+            'operation': "delete"
+        }));            
+    }
+
+
+    function editComment(e){
+   
+        dataId = parseInt(e.target.getAttribute('data-id'));
+        var card = document.querySelector(`.card[data-id="${dataId}"]`)
+
+        var cardBody = card.querySelector('.card-body')
+        comment_text = cardBody.querySelector('.card-text').innerText
+        cardBody.hidden = true;
+
+
+        var commentTextarea = document.createElement('div')
+        commentTextarea.className = 'card-body comment-textarea'
+
+
+        var editionTextarea = document.createElement('textarea')
+        editionTextarea.className = 'form-control'
+
+        editionTextarea.innerText = comment_text
+        commentTextarea.appendChild(editionTextarea)
+
+        
+
+        saveButton = document.createElement('input')
+        saveButton.setAttribute('type', 'button')
+        saveButton.setAttribute('value', 'Save')
+        saveButton.className = 'btn btn-primary btn-sm m-1'
+        commentTextarea.appendChild(saveButton)
+
+        
+        cancelButton = document.createElement('input')
+        cancelButton.setAttribute('type', 'button')
+        cancelButton.setAttribute('value', 'Cancel')
+        cancelButton.className = 'btn btn-secondary btn-sm m-1'
+        commentTextarea.appendChild(cancelButton)
+
+        card.appendChild(commentTextarea)
+
+        //start cursor from the end of the text line
+        editionTextarea.onfocus = function() {
+            setCaretPosition(editionTextarea, editionTextarea.value.length);
+        }
+        editionTextarea.focus()
+
+        // if cancel edition
+        cancelButton.onclick = function(){
+             cancelEdit(cardBody, commentTextarea)
+        }
+
+        //use enter to submit
+        editionTextarea.onkeyup = function(e) {
+            if (e.keyCode === 13) {  // enter, return
+               saveButton.click();
+            }
+        };
+        
+        // i won't treat the case when there is no changes, cuz i'm lazy and it's 3 am now - so it'll update anyway
+        saveButton.onclick = function(){
+            message = editionTextarea.value
+     
+            commentSocket.send(JSON.stringify({
+            'taskId': {{task.id}},
+            'commentId': dataId,
+            'message': message,
+            'operation': "edit"
+            }));    
+        };
+    }
+
+
+    function cancelEdit(cardBody, commentTextarea){
+        commentTextarea.parentNode.removeChild(commentTextarea)
+        cardBody.hidden = false
+    }
+
+</script>
+{% endblock %}

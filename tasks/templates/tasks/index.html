@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+        <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+    <!-- Add icon library -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/main.css' %}">
+    <script>
+        var user = '{{request.user}}'
+    </script>
+</head>
+<body>
+	{%  include 'tasks/navbar.html' %}
+	
+    {% block content %}
+    <div class="center-column">
+        {% if user_tasks %}
+        <div class="item-row" id="tasks-header">
+            <h4>Your Tasks:</h4>
+        </div>
+        {% endif %}
+        {% for task in user_tasks %}
+        <div class="item-row">
+                <div class="d-flex justify-content-between mb-3">
+                    <a class="link-light p-2" href="{% url 'tasks:detail' task.id %}"><h3>{{task.title}}</h3></a>
+                    <a type="button" class="btn btn-outline-light p-2" href="{% url 'tasks:share' task.id %}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-reply" viewBox="0 0 16 16">
+                            <path d="M6.598 5.013a.144.144 0 0 1 .202.134V6.3a.5.5 0 0 0 .5.5c.667 0 2.013.005 3.3.822.984.624 1.99 1.76 2.595 3.876-1.02-.983-2.185-1.516-3.205-1.799a8.74 8.74 0 0 0-1.921-.306 7.404 7.404 0 0 0-.798.008h-.013l-.005.001h-.001L7.3 9.9l-.05-.498a.5.5 0 0 0-.45.498v1.153c0 .108-.11.176-.202.134L2.614 8.254a.503.503 0 0 0-.042-.028.147.147 0 0 1 0-.252.499.499 0 0 0 .042-.028l3.984-2.933zM7.8 10.386c.068 0 .143.003.223.006.434.02 1.034.086 1.7.271 1.326.368 2.896 1.202 3.94 3.08a.5.5 0 0 0 .933-.305c-.464-3.71-1.886-5.662-3.46-6.66-1.245-.79-2.527-.942-3.336-.971v-.66a1.144 1.144 0 0 0-1.767-.96l-3.994 2.94a1.147 1.147 0 0 0 0 1.946l3.994 2.94a1.144 1.144 0 0 0 1.767-.96v-.667z"></path>
+                        </svg>
+                        Share
+                    </a>
+                </div>
+                <p>{{task.description}}</p>
+                {% if task.expiration_date and not task.expired %}
+                <p>Deadline:  <time>{{task.expiration_date}}</time></p>
+                {% endif %}
+                {% if task.expired %}
+                <p>Deadline:  <b style="color: red;">Expired</b></p>
+                {% endif %}
+                <p> {{task.author}}</p>
+                <form method="POST" action="{% url 'tasks:delete' task.id %}">
+                    {% csrf_token %}
+                    <input type="submit" class="btn btn-danger delete" name="delete" value="Delete" >
+                </form>
+                <a class="btn btn-success" href="{% url 'tasks:update' task.id %}">Update Task</a>
+        </div>
+        {% endfor %}
+        {% if permitted_tasks %}
+        <div class="item-row" id="tasks-header">
+            <h4>Tasks shared with you:</h4>
+        </div>
+        {% endif %}
+        {% for task in permitted_tasks %}
+        <div class="item-row">
+                <a class="link-light p-2" href="{% url 'tasks:detail' task.id %}"><h3>{{task.title}}</h3></a>
+                <p>{{task.description}}</p>
+                {% if task.expiration_date and not task.expired %}
+                <p>Deadline:  <time>{{task.expiration_date}}</time></p>
+                {% endif %}
+                {% if task.expired %}
+                <p>Deadline:  <b style="color: red;">Expired</b></p>
+                {% endif %}
+                <p> {{task.author}}</p>
+        </div>
+        {% endfor %}
+
+   
+        <div class="container-sm">
+            <form method="POST" action="/">
+            {% csrf_token %}
+                <div class="row g-2">
+                    {{form}}
+                </div>
+                <input class="btn btn-info main" type="submit" name="Create Task">
+            </form>
+        </div>
+    </div>
+
+    {% endblock %}
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+</body>
+</html>

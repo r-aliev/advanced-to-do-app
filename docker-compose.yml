@@ -1,0 +1,81 @@
+version: "3.9"
+   
+services:
+
+  redis:
+    container_name: redis
+    hostname: redis
+    image: redis:latest
+    networks:
+      - main
+    command: redis-server
+    ports:
+      - "6379:6379"
+    restart: on-failure
+
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: postgres:latest
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    networks:
+      - main
+    ports:
+      - "5432:5432"
+    restart: on-failure
+    volumes:
+      - postgresql-data:/var/lib/postgresql/data
+  
+  todo_app:
+    build: .
+    command:  ./migrate_and_start.sh
+    container_name: todo_app
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    hostname: todo_app
+    image: todo-app-image
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - main
+    restart: on-failure
+  
+  celery_worker:
+    command: celery -A mytodolist worker -l info
+    container_name: celery_worker
+    depends_on:
+      - todo_app
+      - postgres
+      - redis
+    hostname: celery_worker
+    image: todo-app-image
+    networks:
+      - main
+    restart: on-failure
+  celery_beat:
+    command: celery -A mytodolist beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    container_name: celery_beat
+    depends_on:
+      - todo_app
+      - postgres
+      - redis
+    hostname: celery_beat
+    image: todo-app-image
+    networks:
+      - main
+    restart: on-failure
+  
+networks:
+  main:
+
+volumes:
+  postgresql-data:
